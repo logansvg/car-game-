@@ -1,0 +1,167 @@
+import pygame
+import random
+
+# Initialize Pygame
+pygame.init()
+
+# Screen dimensions
+WIDTH, HEIGHT = 800, 600
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("kennys danger zone ")
+
+# Colors
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+BLUE = (0, 0, 255)
+
+# Clock for controlling frame rate
+clock = pygame.time.Clock()
+
+# Player car properties
+car_width, car_height = 50, 100
+car_x = WIDTH // 2
+car_y = HEIGHT // 2
+car_velocity = 5
+
+# Obstacle properties
+obstacle_size = 50
+obstacles = []  # List to hold obstacle positions and directions
+obstacle_spawn_timer = 0
+obstacle_speed = 5
+
+# Score
+score = 0
+
+# Fonts for score and end screen
+font = pygame.font.SysFont(None, 36)
+end_font = pygame.font.SysFont(None, 72)
+
+
+def display_score(score):
+    """Display the player's score on the screen."""
+    text = font.render(f"Score: {score}", True, BLACK)
+    screen.blit(text, (10, 10))
+
+
+def show_end_screen(score):
+    """Display the end screen with the player's score."""
+    screen.fill(WHITE)
+    game_over_text = end_font.render("Game Over!", True, RED)
+    score_text = font.render(f"Your Score: {score}", True, BLACK)
+    restart_text = font.render("Press R to Restart or Q to Quit", True, BLACK)
+
+    # Center the texts on the screen
+    screen.blit(game_over_text, (WIDTH // 2 - game_over_text.get_width() // 2, HEIGHT // 3))
+    screen.blit(score_text, (WIDTH // 2 - score_text.get_width() // 2, HEIGHT // 2))
+    screen.blit(restart_text, (WIDTH // 2 - restart_text.get_width() // 2, HEIGHT // 2 + 50))
+
+    pygame.display.flip()
+
+    # Wait for player input to restart or quit
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                return False
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_r]:  # Restart
+            return True
+        elif keys[pygame.K_q]:  # Quit
+            return False
+        clock.tick(10)
+
+
+def spawn_obstacle():
+    """Spawn an obstacle from a random side of the screen."""
+    side = random.choice(['top', 'bottom', 'left', 'right'])
+    if side == 'top':
+        x = random.randint(0, WIDTH - obstacle_size)
+        y = -obstacle_size
+        dx, dy = 0, 1  # Moves down
+    elif side == 'bottom':
+        x = random.randint(0, WIDTH - obstacle_size)
+        y = HEIGHT
+        dx, dy = 0, -1  # Moves up
+    elif side == 'left':
+        x = -obstacle_size
+        y = random.randint(0, HEIGHT - obstacle_size)
+        dx, dy = 1, 0  # Moves right
+    elif side == 'right':
+        x = WIDTH
+        y = random.randint(0, HEIGHT - obstacle_size)
+        dx, dy = -1, 0  # Moves left
+
+    obstacles.append([x, y, dx, dy])
+
+
+# Game loop
+while True:
+    car_x, car_y = WIDTH // 2, HEIGHT // 2
+    obstacles = []
+    obstacle_speed = 5
+    score = 0
+    running = True
+
+    while running:
+        clock.tick(30)  # 30 frames per second
+        screen.fill(WHITE)
+
+        # Event handling
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                exit()
+
+        # Car movement
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and car_x > 0:
+            car_x -= car_velocity
+        if keys[pygame.K_RIGHT] and car_x < WIDTH - car_width:
+            car_x += car_velocity
+        if keys[pygame.K_UP] and car_y > 0:
+            car_y -= car_velocity
+        if keys[pygame.K_DOWN] and car_y < HEIGHT - car_height:
+            car_y += car_velocity
+
+        # Spawn new obstacles
+        obstacle_spawn_timer += 1
+        if obstacle_spawn_timer >= 20:  # Spawn a new obstacle every 20 frames
+            spawn_obstacle()
+            obstacle_spawn_timer = 0
+
+        # Move obstacles
+        for obstacle in obstacles:
+            obstacle[0] += obstacle[2] * obstacle_speed
+            obstacle[1] += obstacle[3] * obstacle_speed
+            # Remove obstacles that are off-screen
+            if (obstacle[0] < -obstacle_size or obstacle[0] > WIDTH or
+                    obstacle[1] < -obstacle_size or obstacle[1] > HEIGHT):
+                obstacles.remove(obstacle)
+                score += 1  # Increase score when an obstacle is avoided
+
+        # Collision detection
+        for obstacle in obstacles:
+            if (car_x < obstacle[0] + obstacle_size and
+                    car_x + car_width > obstacle[0] and
+                    car_y < obstacle[1] + obstacle_size and
+                    car_y + car_height > obstacle[1]):
+                running = False
+
+        # Draw player car and obstacles
+        pygame.draw.rect(screen, BLUE, (car_x, car_y, car_width, car_height))  # Player car
+        for obstacle in obstacles:
+            pygame.draw.rect(screen, RED, (obstacle[0], obstacle[1], obstacle_size, obstacle_size))  # Obstacle
+
+        # Display score
+        display_score(score)
+
+        # Gradually increase obstacle speed
+        if score > 0 and score % 10 == 0:
+            obstacle_speed += 0.01
+
+        # Update the screen
+        pygame.display.flip()
+
+    # Show end screen and check for restart or quit
+    if not show_end_screen(score):
+        break
